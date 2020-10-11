@@ -1,7 +1,5 @@
 # Cropty
 
-[![img](https://github.com/samuelschlesinger/cropty/workflows/CI/badge.svg)](https://github.com/samuelschlesinger/cropty/actions)
-
 A little tool for doing encryption using a combination of RSA and AEP, using the
 [cryptonite](https://hackage.haskell.org/package/cryptonite) library for cryptography
 and [commander-cli](https://hackage.haskell.org/package/commander-cli) for its CLI
