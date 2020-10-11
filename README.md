@@ -5,11 +5,26 @@ A little tool for doing encryption using a combination of RSA and AEP, using the
 and [commander-cli](https://hackage.haskell.org/package/commander-cli) for its CLI
 interface.
 
+## Installation
+
+To install, run the following in this directory:
+
+```bash
+cabal install --installdir=.
+```
+
 ## Example Usage
 
-We can generate an RSA keypair with 4096 bytes.
 ```bash
+export IDENTITY_FILE=my_identity
+cropty identity populate -s 512
+echo "Hello, world! This is my secret message" > message
+cropty encrypt my_identity.public message.encrypted message
+cropty decrypt message.encrypted message.decrypted
+cat message.decrypted
 
+cropty sign message.encrypted message.signature
+cropty verify message.encrypted message.signature my_identity.public
 ```
 
 ```bash
