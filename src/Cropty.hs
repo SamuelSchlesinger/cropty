@@ -48,10 +48,6 @@ encryptSmall (PublicKey pub) message = RSA.OAEP.encrypt (RSA.OAEP.defaultOAEPPar
 decryptSmall :: PrivateKey -> ByteString -> IO (Either RSA.Error ByteString)
 decryptSmall (PrivateKey priv) message = RSA.OAEP.decryptSafer (RSA.OAEP.defaultOAEPParams Hash.SHA512) priv message
 
--- Generate a 32 byte bytestring, encrypt it using RSA for our
--- destination, then use it as the input to encrypt, using AES, the 
--- message we actually wanted to encrypt.
-
 newtype Key = Key { keyBytes :: ByteString }
 
 generateKey :: IO Key
@@ -93,11 +89,9 @@ decrypt privateKey Message{encryptedKey, encryptedBytes} = do
       Error.CryptoFailed e -> throwIO $ DecryptionException (show e)
       Error.CryptoPassed (c :: AES.AES256) -> do
         let decryptedBytes = Cipher.ecbDecrypt c encryptedBytes
-        let n = ByteString.length decryptedBytes
-        if n > 0 then do
+        if ByteString.length decryptedBytes > 0 then do
           let paddingSize = fromIntegral (ByteString.index decryptedBytes 0)
-          let unpadded = snd (ByteString.splitAt (paddingSize + 1) decryptedBytes)
-          pure unpadded
+          pure $ snd (ByteString.splitAt (paddingSize + 1) decryptedBytes)
         else throwIO (DecryptionException "Not encrypted by Cropty")
 
 data SignatureException = SignatureException String
