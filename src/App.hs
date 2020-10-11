@@ -18,13 +18,35 @@ import qualified Data.Binary as Binary
 main :: IO ()
 main = command_ $ toplevel @"cropty" program
   where
-    program = description @"cropty is a command line program for encryption and decryption" $
+    program = description @"A CLI for simple cryptographic tasks." $
+      annotated @"the environment variable containing the filename of my private key, with my public key located at $IDENTITY_FILE.public" $
       env @"IDENTITY_FILE" $ \identityFile ->
-      sub @"identity" (sub @"populate" $ opt @"s" @"key-size" $ \keySize -> raw (populateIdentity keySize identityFile))
-      <+> sub @"encrypt" (arg @"to-filename" $ \to -> arg @"dest-filename" $ \dest -> arg @"message-filename" (raw . encryptFile dest to))
-      <+> sub @"decrypt" (arg @"encrypted-filename" $ \encFilepath -> arg @"decrypted-filename" (raw . decryptFile encFilepath identityFile))
-      <+> sub @"sign" (arg @"filename-to-sign" $ \fileToSign -> arg @"signature-filename" (raw . signFile identityFile fileToSign))
-      <+> sub @"verify" (arg @"filename-signed" $ \fileSigned -> arg @"signature-filename" $ \signatureFilename -> arg @"signer-pubkey" (raw . verifySignature fileSigned signatureFilename))
+      sub @"identity"
+        ( sub @"populate"
+        $ description @"Populate the IDENTITY_FILE location with a new RSA private key, writing the public key to IDENTITY_FILE.public"
+        $ opt @"s" @"key-size" $ \keySize -> raw (populateIdentity keySize identityFile)
+        )
+      <+> sub @"encrypt"
+        ( description @"Encrypt a file for decryption by someone with the private key matching the public key you pass in."
+        $ annotated @"the file where your friend's public key is loaded" $ arg @"public-key-filepath" $ \to ->
+          annotated @"the file your encrypted message will be written to" $ arg @"destination-filepath" $ \dest ->
+          annotated @"the file containing the plaintext you want to encrypt" $ arg @"plaintext-filepath" (raw . encryptFile dest to))
+      <+> sub @"decrypt"
+        ( description @"Decrypt a file encrypted for you with your private key."
+        $ annotated @"the file which is currently encrypted" $ arg @"encrypted-filename" $ \encFilepath ->
+          annotated @"the file your plaintext will be written to" $ arg @"decrypted-filename" (raw . decryptFile encFilepath identityFile)
+        )
+      <+> sub @"sign"
+        ( description @"Sign a file with your private key."
+        $ annotated @"the file whose contents you will sign" $ arg @"filename-to-sign" $ \fileToSign ->
+          annotated @"the file where you will write out the signature" $ arg @"signature-filename" (raw . signFile identityFile fileToSign)
+        )
+      <+> sub @"verify"
+        ( description @"Verify that a signature belongs to the owner of the private key associated to the one you've passed in"
+        $ annotated @"the file which was signed" $ arg @"filename-signed" $ \fileSigned ->
+          annotated @"the file with the signature" $ arg @"signature-filename" $ \signatureFilename ->
+          annotated @"the file containing the public key of who produced this signature by signing this file" $ arg @"signer-pubkey" (raw . verifySignature fileSigned signatureFilename)
+        )
     populateIdentity :: Maybe Int -> FilePath -> IO ()
     populateIdentity (maybe 2048 id -> n) identityFilepath = do
       doesFileExist identityFilepath >>= \case
