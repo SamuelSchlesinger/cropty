@@ -5,7 +5,16 @@ A little tool for doing encryption using a combination of RSA and AEP, using the
 and [commander-cli](https://hackage.haskell.org/package/commander-cli) for its CLI
 interface.
 
+## Example Usage
+
+We can generate an RSA keypair with 4096 bytes.
+```bash
+
 ```
+
+```bash
+$ cropty help
+
 usage:
 name: cropty
 |

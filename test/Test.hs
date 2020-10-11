@@ -12,21 +12,23 @@ import Control.Monad (guard)
 
 main :: IO ()
 main = do
-  privateKey <- generatePrivateKey 256
-  privateKey' <- generatePrivateKey 256
+  keypairs <- sequence
+    [ (\private -> (private, privateToPublic private)) <$> generatePrivateKey s
+    | s <- [256, 512, 1024, 2048, 4096]
+    ]
   let
-    publicKey = privateToPublic privateKey
-    publicKey' = privateToPublic privateKey'
-    roundTrip gen = withTests 10 $ property do
+    nTests = 100
+    roundTrip gen = withTests nTests $ property do
+      (privateKey, publicKey) <- forAll (element keypairs)
       x <- forAll gen
       msg <- liftIO (encrypt publicKey x)
       y <- liftIO (decrypt privateKey msg)
       x === y
-    signAndVerify gen = withTests 10 $ property do
+    signAndVerify gen = withTests nTests $ property do
+      (privateKey, publicKey) <- forAll (element keypairs)
       x <- forAll gen
       sig <- liftIO (sign privateKey x)
       assert (verify publicKey x sig)
-      assert (not (verify publicKey' x sig))
   guard =<< checkParallel (Group "Encryption/Decryption" [
         ("Round Trip UTF-8",
           roundTrip (utf8 (linearFrom 0 1000 10000) unicodeAll)

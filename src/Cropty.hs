@@ -40,18 +40,25 @@ data GenerationException = GenerationException String
 instance Exception GenerationException
 
 generatePrivateKey :: Int -> IO PrivateKey
-generatePrivateKey n = if n >= 256 then (PrivateKey . snd) <$> RSA.generate n 65537 else throwIO (GenerationException "size of key must be greater than or equal to 256")
+generatePrivateKey n =
+    if n >= 256
+      then (PrivateKey . snd) <$> RSA.generate n 65537
+      else throwIO (GenerationException "size of key must be greater than or equal to 256")
 
 encryptSmall :: PublicKey -> ByteString -> IO (Either RSA.Error ByteString)
-encryptSmall (PublicKey pub) message = RSA.OAEP.encrypt (RSA.OAEP.defaultOAEPParams Hash.SHA512) pub message
+encryptSmall (PublicKey pub) message =
+    RSA.OAEP.encrypt (RSA.OAEP.defaultOAEPParams Hash.SHA512) pub message
 
 decryptSmall :: PrivateKey -> ByteString -> IO (Either RSA.Error ByteString)
-decryptSmall (PrivateKey priv) message = RSA.OAEP.decryptSafer (RSA.OAEP.defaultOAEPParams Hash.SHA512) priv message
+decryptSmall (PrivateKey priv) message =
+    RSA.OAEP.decryptSafer (RSA.OAEP.defaultOAEPParams Hash.SHA512) priv message
 
-newtype Key = Key { keyBytes :: ByteString }
+newtype Key =
+    Key { keyBytes :: ByteString }
 
 generateKey :: IO Key
-generateKey = Key <$> Random.getRandomBytes 32
+generateKey =
+    Key <$> Random.getRandomBytes 32
 
 data Message = Message
   { encryptedKey :: ByteString
@@ -65,8 +72,6 @@ instance Exception EncryptionException
 
 encrypt :: PublicKey -> ByteString -> IO Message
 encrypt publicKey message = do
-  let paddingSize :: Int = 16 - (ByteString.length message + 1) `mod` 16
-  let paddedMessage = ByteString.singleton (fromIntegral paddingSize) <> ByteString.replicate paddingSize 0 <> message
   key <- generateKey
   encryptSmall publicKey (keyBytes key) >>= \case
     Left rsaError -> throwIO $ EncryptionException (show rsaError)
@@ -75,6 +80,9 @@ encrypt publicKey message = do
       Error.CryptoPassed (c :: AES.AES256) -> do
         let encryptedBytes = Cipher.ecbEncrypt c paddedMessage
         pure Message{encryptedKey, encryptedBytes}
+  where
+    paddingSize = 16 - (ByteString.length message + 1) `mod` 16
+    paddedMessage = ByteString.singleton (fromIntegral paddingSize) <> ByteString.replicate paddingSize 0 <> message
 
 data DecryptionException = DecryptionException String
   deriving Show
