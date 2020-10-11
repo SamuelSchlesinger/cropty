@@ -16,15 +16,15 @@ cabal install --installdir=.
 ## Example Usage
 
 ```bash
-export IDENTITY_FILE=my_identity
-cropty identity populate -s 512
-echo "Hello, world! This is my secret message" > message
-cropty encrypt my_identity.public message.encrypted message
-cropty decrypt message.encrypted message.decrypted
-cat message.decrypted
+$ export IDENTITY_FILE=my_identity
+$ cropty identity populate -s 512
+$ echo "Hello, world! This is my secret message" > message
+$ cropty encrypt my_identity.public message.encrypted message
+$ cropty decrypt message.encrypted message.decrypted
+$ cat message.decrypted
 
-cropty sign message.encrypted message.signature
-cropty verify message.encrypted message.signature my_identity.public
+$ cropty sign message.encrypted message.signature
+$ cropty verify message.encrypted message.signature my_identity.public
 ```
 
 ```bash
