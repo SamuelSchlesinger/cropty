@@ -12,8 +12,8 @@ import Control.Monad (guard)
 
 main :: IO ()
 main = do
-  privateKey <- generatePrivateKey 1024
-  privateKey' <- generatePrivateKey 1024
+  privateKey <- generatePrivateKey 256
+  privateKey' <- generatePrivateKey 256
   let
     publicKey = privateToPublic privateKey
     publicKey' = privateToPublic privateKey'

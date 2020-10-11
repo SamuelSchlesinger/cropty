@@ -34,8 +34,13 @@ data PublicKey = PublicKey
 privateToPublic :: PrivateKey -> PublicKey
 privateToPublic = PublicKey . RSA.private_pub . privateKey
 
+data GenerationException = GenerationException String
+  deriving Show
+
+instance Exception GenerationException
+
 generatePrivateKey :: Int -> IO PrivateKey
-generatePrivateKey n = (PrivateKey . snd) <$> RSA.generate n 65537
+generatePrivateKey n = if n >= 256 then (PrivateKey . snd) <$> RSA.generate n 65537 else throwIO (GenerationException "size of key must be greater than or equal to 256")
 
 encryptSmall :: PublicKey -> ByteString -> IO (Either RSA.Error ByteString)
 encryptSmall (PublicKey pub) message = RSA.OAEP.encrypt (RSA.OAEP.defaultOAEPParams Hash.SHA512) pub message
