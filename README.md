@@ -1,6 +1,9 @@
 # Cropty
 
-A little tool for doing encryption using a combination of RSA and AEP, based on the [cryptonite](https://hackage.haskell.org/package/cryptonite) library.
+A little tool for doing encryption using a combination of RSA and AEP, using the
+[cryptonite](https://hackage.haskell.org/package/cryptonite) library for cryptography
+and [commander-cli](https://hackage.haskell.org/package/commander-cli) for its CLI
+interface.
 
 ```
 usage:
