@@ -64,7 +64,8 @@ instance Exception EncryptionException
 
 encrypt :: PublicKey -> ByteString -> IO Message
 encrypt publicKey message = do
-  let paddedMessage = Padding.pad (Padding.ZERO 16) message
+  let paddingSize :: Int = 16 - (ByteString.length message + 1) `mod` 16
+  let paddedMessage = ByteString.singleton (fromIntegral paddingSize) <> ByteString.replicate paddingSize 0 <> message
   key <- generateKey
   encryptSmall publicKey (keyBytes key) >>= \case
     Left rsaError -> throwIO $ EncryptionException (show rsaError)
@@ -87,9 +88,14 @@ decrypt privateKey Message{encryptedKey, encryptedBytes} = do
       Error.CryptoFailed e -> throwIO $ DecryptionException (show e)
       Error.CryptoPassed (c :: AES.AES256) -> do
         let decryptedBytes = Cipher.ecbDecrypt c encryptedBytes
-        -- TODO(sam) dropWhileEnd in bytestring 0.11 should be used here,
-        -- this is depressingly bad ATM
-        pure $ ByteString.reverse (ByteString.dropWhile (== 0) (ByteString.reverse decryptedBytes))
+        let n = ByteString.length decryptedBytes
+        if n > 0 then do
+          -- TODO(sam) dropWhileEnd in bytestring 0.11 should be used here,
+          -- this is depressingly bad ATM
+          let paddingSize = fromIntegral (ByteString.index decryptedBytes 0)
+          let unpadded = snd (ByteString.splitAt (paddingSize + 1) decryptedBytes)
+          pure unpadded
+        else throwIO (DecryptionException "Not encrypted by Cropty")
 
 data SignatureException = SignatureException String
   deriving Show
