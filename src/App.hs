@@ -1,9 +1,11 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 module App (main) where
 
 import Options.Commander
+import System.Directory (doesFileExist)
 import Cropty
 import UnliftIO.IO.File
 import System.IO (hPutStrLn, stderr)
@@ -22,9 +24,12 @@ main = command_ $ toplevel @"cropty" program
       <+> sub @"decrypt" (arg @"encrypted-filename" $ \encFilepath -> arg @"decrypted-filename" (raw . decryptFile encFilepath identityFile))
     populateIdentity :: FilePath -> IO ()
     populateIdentity identityFilepath = do
-      priv <- generatePrivateKey
-      writeBinaryFileDurableAtomic identityFilepath (ByteString.Char8.pack $ show priv)
-      writeBinaryFileDurableAtomic (identityFilepath <> ".public") (ByteString.Char8.pack $ show (privateToPublic priv))
+      doesFileExist identityFilepath >>= \case
+        True -> putStrLn "You already have a populated identity file. Delete it manually if you would like to generate a new one."
+        False -> do
+          priv <- generatePrivateKey
+          writeBinaryFileDurableAtomic identityFilepath (ByteString.Char8.pack $ show priv)
+          writeBinaryFileDurableAtomic (identityFilepath <> ".public") (ByteString.Char8.pack $ show (privateToPublic priv))
     encryptFile :: FilePath -> FilePath -> FilePath -> IO ()
     encryptFile destFilepath toFilePath msgFilepath = do
       pub <- read <$> readFile toFilePath
