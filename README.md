@@ -18,7 +18,7 @@ name: cropty
    |     |
    |     +- description: Populate the IDENTITY_FILE location with a new RSA private key, writing the public key to IDENTITY_FILE.public
    |     |
-   |     `- option: -s <key-size :: Int>
+   |     `- option: -s <key-size :: Int>, the size of your RSA key pair (e.g. 1024, 2048, 4096), defaulting to 2048
    |
    +- subprogram: encrypt
    |  |

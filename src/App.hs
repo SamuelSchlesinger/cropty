@@ -24,6 +24,7 @@ main = command_ $ toplevel @"cropty" program
       sub @"identity"
         ( sub @"populate"
         $ description @"Populate the IDENTITY_FILE location with a new RSA private key, writing the public key to IDENTITY_FILE.public"
+        $ annotated @"the size of your RSA key pair (e.g. 1024, 2048, 4096), defaulting to 2048"
         $ opt @"s" @"key-size" $ \keySize -> raw (populateIdentity keySize identityFile)
         )
       <+> sub @"encrypt"
