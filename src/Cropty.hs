@@ -95,8 +95,6 @@ decrypt privateKey Message{encryptedKey, encryptedBytes} = do
         let decryptedBytes = Cipher.ecbDecrypt c encryptedBytes
         let n = ByteString.length decryptedBytes
         if n > 0 then do
-          -- TODO(sam) dropWhileEnd in bytestring 0.11 should be used here,
-          -- this is depressingly bad ATM
           let paddingSize = fromIntegral (ByteString.index decryptedBytes 0)
           let unpadded = snd (ByteString.splitAt (paddingSize + 1) decryptedBytes)
           pure unpadded
