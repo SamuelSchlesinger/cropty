@@ -18,6 +18,7 @@ import qualified Crypto.Error as Error
 import qualified Crypto.Hash.Algorithms as Hash
 import qualified Crypto.PubKey.RSA as RSA
 import qualified Crypto.PubKey.RSA.OAEP as RSA.OAEP
+import qualified Crypto.PubKey.RSA.PSS as RSA.PSS
 import qualified Crypto.Random as Random
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Char8 as ByteString.Char8
@@ -33,8 +34,8 @@ data PublicKey = PublicKey
 privateToPublic :: PrivateKey -> PublicKey
 privateToPublic = PublicKey . RSA.private_pub . privateKey
 
-generatePrivateKey :: IO PrivateKey
-generatePrivateKey = (PrivateKey . snd) <$> RSA.generate 1024 65537
+generatePrivateKey :: Int -> IO PrivateKey
+generatePrivateKey n = (PrivateKey . snd) <$> RSA.generate n 65537
 
 encryptSmall :: PublicKey -> ByteString -> IO (Either RSA.Error ByteString)
 encryptSmall (PublicKey pub) message = RSA.OAEP.encrypt (RSA.OAEP.defaultOAEPParams Hash.SHA512) pub message
@@ -89,3 +90,14 @@ decrypt privateKey Message{encryptedKey, encryptedBytes} = do
         -- TODO(sam) dropWhileEnd in bytestring 0.11 should be used here,
         -- this is depressingly bad ATM
         pure $ ByteString.reverse (ByteString.dropWhile (== 0) (ByteString.reverse decryptedBytes))
+
+data SignatureException = SignatureException String
+  deriving Show
+
+instance Exception SignatureException
+
+sign :: PrivateKey -> ByteString -> IO ByteString
+sign (PrivateKey privateKey) bs = RSA.PSS.signSafer (RSA.PSS.defaultPSSParams Hash.SHA512) privateKey bs >>= either (throwIO . SignatureException . show) pure
+
+verify :: PublicKey -> ByteString -> ByteString -> Bool
+verify (PublicKey pubKey) bs sig = RSA.PSS.verify (RSA.PSS.defaultPSSParams Hash.SHA512) pubKey bs sig

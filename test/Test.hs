@@ -12,7 +12,7 @@ import Control.Monad (guard)
 
 main :: IO ()
 main = do
-  privateKey <- generatePrivateKey
+  privateKey <- generatePrivateKey 1024
   let
     publicKey = privateToPublic privateKey
     roundTrip gen = withTests 10 $ property do
