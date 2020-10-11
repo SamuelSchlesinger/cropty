@@ -15,6 +15,8 @@ name: cropty
    +- subprogram: identity
    |  |
    |  `- subprogram: populate
+   |     |
+   |     `- option: -s <key-size :: Int>
    |
    +- subprogram: encrypt
    |  |
@@ -24,9 +26,23 @@ name: cropty
    |        |
    |        `- argument: message-filename :: [Char]
    |
-   `- subprogram: decrypt
+   +- subprogram: decrypt
+   |  |
+   |  `- argument: encrypted-filename :: [Char]
+   |     |
+   |     `- argument: decrypted-filename :: [Char]
+   |
+   +- subprogram: sign
+   |  |
+   |  `- argument: filename-to-sign :: [Char]
+   |     |
+   |     `- argument: signature-filename :: [Char]
+   |
+   `- subprogram: verify
       |
-      `- argument: encrypted-filename :: [Char]
+      `- argument: filename-signed :: [Char]
          |
-         `- argument: decrypted-filename :: [Char]
+         `- argument: signature-filename :: [Char]
+            |
+            `- argument: signer-pubkey :: [Char]
 ```
