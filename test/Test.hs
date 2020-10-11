@@ -14,10 +14,10 @@ main :: IO ()
 main = do
   keypairs <- sequence
     [ (\private -> (private, privateToPublic private)) <$> generatePrivateKey s
-    | s <- [256, 512, 1024, 2048, 4096]
+    | s <- [256, 512]
     ]
   let
-    nTests = 100
+    nTests = 1000
     roundTrip gen = withTests nTests $ property do
       (privateKey, publicKey) <- forAll (element keypairs)
       x <- forAll gen
@@ -30,30 +30,30 @@ main = do
       sig <- liftIO (sign privateKey x)
       assert (verify publicKey x sig)
   guard =<< checkParallel (Group "Encryption/Decryption" [
-        ("Round Trip UTF-8",
+        ("Encrypt/Decrypt UTF-8",
           roundTrip (utf8 (linearFrom 0 1000 10000) unicodeAll)
         )
-      , ("Round Trip Bytes",
+      , ("Encrypt/Decrypt Bytes",
           roundTrip (bytes (linearFrom 0 1000 10000))
         )
-      , ("Padding CornerCase: Trailing Zeros",
+      , ("Encrypt/Decrybt Trailing Zeros",
           roundTrip ((<>) <$> bytes (linearFrom 0 1000 10000) <*> pure "\0\0\0\0\0\0")
         )
-      , ("Padding Corner Case: Leading Zeros",
+      , ("Encrypt/Decrypt Leading Zeros",
           roundTrip ((<>) <$> pure "\0\0\0\0\0\0" <*> bytes (linearFrom 0 1000 10000))
         )
     ])
   guard =<< checkParallel (Group "Signing/Verification" [
-        ("Sign and Verify UTF-8",
+        ("Sign/Verify UTF-8",
           signAndVerify (utf8 (linearFrom 0 1000 10000) unicodeAll)
         )
-      , ("Sign and Verify Bytes",
+      , ("Sign/Verify Bytes",
           signAndVerify (bytes (linearFrom 0 1000 10000))
         )
-      , ("Sign and Verify: Trailing Zeros",
+      , ("Sign/Verify: Trailing Zeros",
           roundTrip ((<>) <$> bytes (linearFrom 0 1000 10000) <*> pure "\0\0\0\0\0\0")
         )
-      , ("Sign and Verify: Leading Zeros",
+      , ("Sign/Verify: Leading Zeros",
           roundTrip ((<>) <$> pure "\0\0\0\0\0\0" <*> bytes (linearFrom 0 1000 10000))
         )
     ])
