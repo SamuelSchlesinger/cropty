@@ -5,6 +5,9 @@ A little tool for doing encryption using a combination of RSA and AEP, using the
 and [commander-cli](https://hackage.haskell.org/package/commander-cli) for its CLI
 interface.
 
+It is meant for use with very large files. I've tested it on a 6 Gigabyte file and it
+works within seconds for all functions.
+
 ## Installation
 
 To install, run the following in this directory:
