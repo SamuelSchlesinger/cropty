@@ -81,8 +81,14 @@ encrypt publicKey message = do
         let encryptedBytes = Cipher.ecbEncrypt c paddedMessage
         pure Message{encryptedKey, encryptedBytes}
   where
-    paddingSize = 16 - (ByteString.length message + 1) `mod` 16
-    paddedMessage = ByteString.singleton (fromIntegral paddingSize) <> ByteString.replicate paddingSize 0 <> message
+    paddingSize =
+      16 - (ByteString.length message + 1) `mod` 16
+    paddedMessage =
+      ByteString.concat
+        [ ByteString.singleton (fromIntegral paddingSize)
+        , ByteString.replicate paddingSize 0
+        , message
+        ]
 
 data DecryptionException = DecryptionException String
   deriving Show
@@ -108,7 +114,13 @@ data SignatureException = SignatureException String
 instance Exception SignatureException
 
 sign :: PrivateKey -> ByteString -> IO ByteString
-sign (PrivateKey privateKey) bs = RSA.PSS.signSafer (RSA.PSS.defaultPSSParams Hash.SHA512) privateKey bs >>= either (throwIO . SignatureException . show) pure
+sign (PrivateKey privateKey) bs =
+    RSA.PSS.signSafer
+      (RSA.PSS.defaultPSSParams Hash.SHA512)
+      privateKey
+      bs
+    >>= either (throwIO . SignatureException . show) pure
 
 verify :: PublicKey -> ByteString -> ByteString -> Bool
-verify (PublicKey pubKey) bs sig = RSA.PSS.verify (RSA.PSS.defaultPSSParams Hash.SHA512) pubKey bs sig
+verify (PublicKey pubKey) bs sig =
+    RSA.PSS.verify (RSA.PSS.defaultPSSParams Hash.SHA512) pubKey bs sig
