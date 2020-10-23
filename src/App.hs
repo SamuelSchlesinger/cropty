@@ -9,7 +9,6 @@ import Options.Commander
 import System.Directory (doesFileExist)
 import Cropty
 import UnliftIO.IO.File
-import System.IO (hPutStrLn, stderr)
 import qualified Data.ByteString.Char8 as ByteString.Char8
 import qualified Data.ByteString.Lazy as ByteString.Lazy
 import qualified Data.ByteString as ByteString
@@ -25,7 +24,9 @@ main = command_ $ toplevel @"cropty" program
         ( sub @"populate"
         $ description @"Populate the IDENTITY_FILE location with a new RSA private key, writing the public key to IDENTITY_FILE.public"
         $ annotated @"the size of your RSA key pair (e.g. 1024, 2048, 4096), defaulting to 2048"
-        $ opt @"s" @"key-size" $ \keySize -> raw (populateIdentity keySize identityFile)
+        $ optDef @"s" @"key-size" 2048 $ \keySizeZ -> raw $ do
+            keySize <- keySizeFromInt keySizeZ
+            populateIdentity keySize identityFile
         )
       <+> sub @"encrypt"
         ( description @"Encrypt a file for decryption by someone with the private key matching the public key you pass in."
@@ -48,12 +49,12 @@ main = command_ $ toplevel @"cropty" program
           annotated @"the file with the signature" $ arg @"signature-filename" $ \signatureFilename ->
           annotated @"the file containing the public key of who produced this signature by signing this file" $ arg @"signer-pubkey" (raw . verifySignature fileSigned signatureFilename)
         )
-    populateIdentity :: Maybe Int -> FilePath -> IO ()
-    populateIdentity (maybe 2048 id -> n) identityFilepath = do
+    populateIdentity :: KeySize -> FilePath -> IO ()
+    populateIdentity keySize identityFilepath = do
       doesFileExist identityFilepath >>= \case
         True -> putStrLn "You already have a populated identity file. Delete it manually if you would like to generate a new one."
         False -> do
-          priv <- generatePrivateKey n
+          priv <- generatePrivateKey keySize
           writeBinaryFileDurableAtomic identityFilepath (ByteString.Char8.pack $ show priv)
           writeBinaryFileDurableAtomic (identityFilepath <> ".public") (ByteString.Char8.pack $ show (privateToPublic priv))
     encryptFile :: FilePath -> FilePath -> FilePath -> IO ()

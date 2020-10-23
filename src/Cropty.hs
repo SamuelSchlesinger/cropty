@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -9,11 +10,9 @@ module Cropty where
 import Data.ByteString (ByteString)
 import GHC.Generics (Generic)
 import Data.Binary (Binary)
-import Control.Monad (guard)
-import Control.Exception (SomeException, catch, Exception, throwIO)
+import Control.Exception (Exception, throwIO)
 import qualified Crypto.Cipher.AES as AES
 import qualified Crypto.Cipher.Types as Cipher
-import qualified Crypto.Data.Padding as Padding
 import qualified Crypto.Error as Error
 import qualified Crypto.Hash.Algorithms as Hash
 import qualified Crypto.PubKey.RSA as RSA
@@ -21,7 +20,6 @@ import qualified Crypto.PubKey.RSA.OAEP as RSA.OAEP
 import qualified Crypto.PubKey.RSA.PSS as RSA.PSS
 import qualified Crypto.Random as Random
 import qualified Data.ByteString as ByteString
-import qualified Data.ByteString.Char8 as ByteString.Char8
 
 newtype PrivateKey = PrivateKey
   { privateKey :: RSA.PrivateKey }
@@ -34,16 +32,23 @@ data PublicKey = PublicKey
 privateToPublic :: PrivateKey -> PublicKey
 privateToPublic = PublicKey . RSA.private_pub . privateKey
 
-data GenerationException = GenerationException String
-  deriving Show
+data KeySize = KeySize256 | KeySize512 | KeySize1024 | KeySize2048 | KeySize4096
+  deriving (Eq, Ord, Enum, Bounded)
 
-instance Exception GenerationException
+keySizeInt :: KeySize -> Int
+keySizeInt k = 2 ^ (fromEnum k + 8)
 
-generatePrivateKey :: Int -> IO PrivateKey
-generatePrivateKey n =
-    if n >= 256
-      then (PrivateKey . snd) <$> RSA.generate n 65537
-      else throwIO (GenerationException "size of key must be greater than or equal to 256")
+keySizeFromInt :: Int -> IO KeySize
+keySizeFromInt n
+  | n == 256 = pure KeySize256
+  | n == 512 = pure KeySize512
+  | n == 1024 = pure KeySize1024
+  | n == 2048 = pure KeySize2048
+  | n == 4096 = pure KeySize4096 
+  | otherwise = throwIO (userError $ "Key size must be one of " <> (show . map fromEnum) [minBound @KeySize .. maxBound])
+
+generatePrivateKey :: KeySize -> IO PrivateKey
+generatePrivateKey n = (PrivateKey . snd) <$> RSA.generate (keySizeInt n) 65537
 
 encryptSmall :: PublicKey -> ByteString -> IO (Either RSA.Error ByteString)
 encryptSmall (PublicKey pub) message =
