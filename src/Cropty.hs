@@ -39,6 +39,8 @@ module Cropty
   , generatePrivateKeyWithPublicExponent
     -- * Symmetric Encryption
   , Key (Key, keyBytes)
+  , generateKey
+  , generateKeyOfSize
   , encryptSym
   , SymEncryptionException (..)
   , decryptSym
@@ -174,8 +176,12 @@ newtype Key = Key { keyBytes :: ByteString }
 
 -- | Generate a new 'Key'
 generateKey :: IO Key
-generateKey =
-    Key <$> Random.getRandomBytes 32
+generateKey = generateKeyOfSize 32
+
+-- | Generates a new 'Key' with the given size
+generateKeyOfSize :: Int -> IO Key
+generateKeyOfSize n =
+  Key <$> Random.getRandomBytes n
 
 data SymEncryptionException = SymEncryptionException'CryptoniteError CryptoError
   deriving Show
