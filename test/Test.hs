@@ -14,10 +14,10 @@ main :: IO ()
 main = do
   keypairs <- sequence
     [ (\private -> (private, privateToPublic private)) <$> generatePrivateKey s
-    | s <- [256, 512]
+    | Just s <- keySizeFromInt <$> [256, 512]
     ]
   let
-    nTests = 1000
+    nTests = 10
     roundTrip gen = withTests nTests $ property do
       (privateKey, publicKey) <- forAll (element keypairs)
       x <- forAll gen
@@ -28,7 +28,9 @@ main = do
       (privateKey, publicKey) <- forAll (element keypairs)
       x <- forAll gen
       sig <- liftIO (sign privateKey x)
+      sig' <- liftIO (mkSigned privateKey x)
       assert (verify publicKey x sig)
+      assert (verifySigned sig')
   guard =<< checkParallel (Group "Encryption/Decryption" [
         ("Encrypt/Decrypt UTF-8",
           roundTrip (utf8 (linearFrom 0 1000 10000) unicodeAll)
