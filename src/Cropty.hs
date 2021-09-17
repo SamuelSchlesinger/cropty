@@ -27,6 +27,13 @@ module Cropty
   , Signature (Signature, signatureBytes)
   , sign
   , verify
+  , Signed
+  , signed
+  , signedBy
+  , signature
+  , signedEncoded
+  , mkSigned
+  , verifySigned
     -- ** Encrypt/Decrypt Small Strings
   , encryptSmall
   , decryptSmall
@@ -52,7 +59,7 @@ module Cropty
 
 import Data.ByteString (ByteString)
 import GHC.Generics (Generic)
-import Data.Binary (Binary(..))
+import Data.Binary (Binary(..), encode)
 import qualified Crypto.PubKey.RSA.Types (Error (..))
 import Crypto.Error (CryptoError (..))
 import Control.Exception (Exception, throwIO)
@@ -65,6 +72,7 @@ import qualified Crypto.PubKey.RSA.OAEP as RSA.OAEP
 import qualified Crypto.PubKey.RSA.PSS as RSA.PSS
 import qualified Crypto.Random as Random
 import qualified Data.ByteString as ByteString
+import qualified Data.ByteString.Lazy as LBS
 
 -- |
 -- @import qualified Crypto.PubKey.RSA.Types as RSA (Error (..))@
@@ -292,3 +300,21 @@ sign (PrivateKey privateKey) bs =
 verify :: PublicKey -> ByteString -> Signature -> Bool
 verify (PublicKey pubKey) bs (Signature sig) =
     RSA.PSS.verify (RSA.PSS.defaultPSSParams Hash.SHA512) pubKey bs sig
+
+-- | A convenient type in which to wrap signed things.
+data Signed a = Signed
+  { signed :: a
+  , signedEncoded :: ByteString
+  , signature :: Signature
+  , signedBy :: PublicKey
+  } deriving (Eq, Ord, Show, Read, Generic, Binary)
+
+mkSigned :: Binary a => PrivateKey -> a -> IO (Signed a)
+mkSigned privateKey signed = do
+  let signedEncoded = LBS.toStrict $ encode signed
+  signature <- sign privateKey signedEncoded
+  let signedBy = privateToPublic privateKey
+  pure $ Signed { signed, signedEncoded, signature, signedBy }
+  
+verifySigned :: Signed a -> Bool
+verifySigned s = verify (signedBy s) (signedEncoded s) (signature s)
