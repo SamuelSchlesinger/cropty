@@ -59,7 +59,7 @@ module Cropty
 
 import Data.ByteString (ByteString)
 import GHC.Generics (Generic)
-import Data.Binary (Binary(..), encode)
+import Data.Binary (Binary(..), encode, decode)
 import qualified Crypto.PubKey.RSA.Types (Error (..))
 import Crypto.Error (CryptoError (..))
 import Control.Exception (Exception, throwIO)
@@ -307,8 +307,25 @@ data Signed a = Signed
   , signedEncoded :: ByteString
   , signature :: Signature
   , signedBy :: PublicKey
-  } deriving (Eq, Ord, Show, Read, Generic, Binary)
+  } deriving (Eq, Ord, Show, Read, Generic)
 
+instance Binary a => Binary (Signed a) where
+  put s = do
+    put (signedEncoded s)
+    put (signature s)
+    put (signedBy s)
+  get = do
+    signedEncoded <- get
+    signature <- get
+    signedBy <- get
+    pure $ Signed
+      { signed = decode $ LBS.fromStrict signedEncoded
+      , signedEncoded
+      , signature
+      , signedBy
+      }
+    
+-- | Create a 'Signed' piece of data.
 mkSigned :: Binary a => PrivateKey -> a -> IO (Signed a)
 mkSigned privateKey signed = do
   let signedEncoded = LBS.toStrict $ encode signed
@@ -316,5 +333,6 @@ mkSigned privateKey signed = do
   let signedBy = privateToPublic privateKey
   pure $ Signed { signed, signedEncoded, signature, signedBy }
   
+-- | Verify a 'Signed' piece of data.
 verifySigned :: Signed a -> Bool
 verifySigned s = verify (signedBy s) (signedEncoded s) (signature s)

@@ -3,6 +3,7 @@
 {-# LANGUAGE BlockArguments #-}
 module Main where
 
+import Data.Binary (encode, decode)
 import Cropty
 import Control.Monad.IO.Class (liftIO)
 import Hedgehog
@@ -29,6 +30,7 @@ main = do
       x <- forAll gen
       sig <- liftIO (sign privateKey x)
       sig' <- liftIO (mkSigned privateKey x)
+      assert (decode (encode sig') == sig')
       assert (verify publicKey x sig)
       assert (verifySigned sig')
   guard =<< checkParallel (Group "Encryption/Decryption" [
