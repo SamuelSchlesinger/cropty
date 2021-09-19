@@ -47,7 +47,6 @@ module Cropty
     -- * Symmetric Encryption
   , Key (Key, keyBytes)
   , generateKey
-  , generateKeyOfSize
   , encryptSym
   , SymEncryptionException (..)
   , decryptSym
@@ -183,14 +182,11 @@ decryptSmall (PrivateKey priv) message =
 newtype Key = Key { keyBytes :: ByteString }
  deriving (Eq, Ord, Show, Read, Generic, Binary)
 
--- | Generate a new 'Key'
+-- | Generate a new 'Key'. It must have 32 bytes, because
+-- we are using AES256, and there are 8 bits in a byte.
+-- In other words: @32 * 8 = 256@.
 generateKey :: IO Key
-generateKey = generateKeyOfSize 32
-
--- | Generates a new 'Key' with the given size
-generateKeyOfSize :: Int -> IO Key
-generateKeyOfSize n =
-  Key <$> Random.getRandomBytes n
+generateKey = Key <$> Random.getRandomBytes 32 
 
 data SymEncryptionException = SymEncryptionException'CryptoniteError CryptoError
   deriving Show
