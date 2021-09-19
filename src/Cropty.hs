@@ -63,6 +63,7 @@ import Data.Binary (Binary(..), encode, decode)
 import qualified Crypto.PubKey.RSA.Types (Error (..))
 import Crypto.Error (CryptoError (..))
 import Control.Exception (Exception, throwIO)
+import Data.Function (on)
 import qualified Crypto.Cipher.AES as AES
 import qualified Crypto.Cipher.Types as Cipher
 import qualified Crypto.Error as Error
@@ -307,7 +308,19 @@ data Signed a = Signed
   , signedEncoded :: ByteString
   , signature :: Signature
   , signedBy :: PublicKey
-  } deriving (Eq, Ord, Show, Read, Generic)
+  } deriving (Show, Read, Generic)
+
+instance Eq (Signed a) where
+  s == s' =
+       ((==) `on` signature) s s'
+    && ((==) `on` signedEncoded) s s'
+    && ((==) `on` signedBy) s s'
+
+instance Ord (Signed a) where
+  compare s s' =
+       (compare `on` signature) s s'
+    <> (compare `on` signedEncoded) s s'
+    <> (compare `on` signedBy) s s'
 
 instance Binary a => Binary (Signed a) where
   put s = do
