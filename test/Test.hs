@@ -18,7 +18,7 @@ main = do
     | Just s <- keySizeFromInt <$> [256, 512]
     ]
   let
-    nTests = 10
+    nTests = 1
     roundTrip gen = withTests nTests $ property do
       (privateKey, publicKey) <- forAll (element keypairs)
       x <- forAll gen
@@ -29,7 +29,7 @@ main = do
       (privateKey, publicKey) <- forAll (element keypairs)
       x <- forAll gen
       sig <- liftIO (sign privateKey x)
-      sig' <- liftIO (mkSigned privateKey x)
+      sig' <- liftIO (signed privateKey x)
       assert (decode (encode sig') == sig')
       assert (verify publicKey x sig)
       assert (verifySigned sig')

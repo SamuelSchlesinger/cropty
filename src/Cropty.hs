@@ -4,6 +4,9 @@ Description: A simplified interface to asymmetric and symmetric cryptography
 License: MIT
 Copyright: Samuel Schlesinger 2021 (c)
 -}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -23,16 +26,19 @@ module Cropty
   , EncryptionException (..)
   , decrypt
   , DecryptionException (..)
+  , Encrypted
+  , encrypted
+  , decrypted
     -- ** Digital Signatures
   , Signature (Signature, signatureBytes)
   , sign
   , verify
   , Signed
   , signed
+  , signedThing
   , signedBy
   , signature
   , signedEncoded
-  , mkSigned
   , verifySigned
     -- ** Encrypt/Decrypt Small Strings
   , encryptSmall
@@ -83,7 +89,20 @@ type RSAError = Crypto.PubKey.RSA.Types.Error
 -- intended for you.
 newtype PrivateKey = PrivateKey
   { privateKey :: RSA.PrivateKey }
-  deriving (Show, Read, Eq)
+  deriving stock (Show, Read, Eq)
+
+-- | A newtype around 'ByteString' which gives us knowledge of a known 'encode'd type.
+newtype Encoded a = Encoded { unEncoded :: ByteString }
+  deriving newtype (Binary)
+  deriving stock (Show, Read, Generic)
+
+-- | Decode an 'Encoded' thing.
+decoded :: Binary a => Encoded a -> a
+decoded = decode . LBS.fromStrict . unEncoded
+
+-- | Construct an 'Encoded' type.
+encoded :: Binary a => a -> Encoded a
+encoded = Encoded . LBS.toStrict . encode
 
 instance Binary PrivateKey where
   put (PrivateKey p) = do
@@ -114,7 +133,7 @@ instance Ord PrivateKey where
 -- someone will be able to verify it was you with your public key.
 data PublicKey = PublicKey
   { publicKey :: RSA.PublicKey }
-  deriving (Show, Read, Eq)
+  deriving stock (Show, Read, Eq)
 
 instance Binary PublicKey where
   put (PublicKey p) = do
@@ -140,7 +159,7 @@ privateToPublic = PublicKey . RSA.private_pub . privateKey
 
 -- | The various supported key sizes for the underlying RSA implementation
 data KeySize = KeySize256 | KeySize512 | KeySize1024 | KeySize2048 | KeySize4096
-  deriving (Eq, Ord, Enum, Bounded)
+  deriving stock (Eq, Ord, Enum, Bounded)
 
 -- | Get the size of the key in the form of an 'Int'
 keySizeInt :: KeySize -> Int
@@ -180,7 +199,8 @@ decryptSmall (PrivateKey priv) message =
 
 -- | A key for symmetric (AEP) encryption
 newtype Key = Key { keyBytes :: ByteString }
- deriving (Eq, Ord, Show, Read, Generic, Binary)
+  deriving stock (Eq, Ord, Show, Read, Generic)
+  deriving anyclass Binary
 
 -- | Generate a new 'Key'. It must have 32 bytes, because
 -- we are using AES256, and there are 8 bits in a byte.
@@ -189,7 +209,7 @@ generateKey :: IO Key
 generateKey = Key <$> Random.getRandomBytes 32 
 
 data SymEncryptionException = SymEncryptionException'CryptoniteError CryptoError
-  deriving Show
+  deriving stock Show
 
 instance Exception SymEncryptionException
 
@@ -212,12 +232,12 @@ encryptSym key bs =
 
 data CroptyError =
     NotEncryptedByCropty
-  deriving Show
+  deriving stock Show
 
 instance Exception CroptyError
 
 data SymDecryptionException = SymDecryptionException'CryptoniteError CryptoError | SymDecryptionException'CroptyError CroptyError
-  deriving Show
+  deriving stock Show
 
 instance Exception SymDecryptionException
 
@@ -240,18 +260,19 @@ decryptSym key bs =
 data Message = Message
   { encryptedKey :: ByteString
   , encryptedBytes :: ByteString
-  } deriving (Show, Read, Generic, Binary)
+  } deriving stock (Show, Read, Generic)
+    deriving anyclass (Binary)
 
 -- | The sort of exception we might get during encryption.
 data EncryptionException = EncryptionException RSAError
-  deriving Show
+  deriving stock Show
 
 instance Exception EncryptionException
 
 -- | Encrypt a 'ByteString' for the given 'PublicKey', storing
 -- the results into a 'Message'.
-encrypt :: PublicKey -> ByteString -> IO Message
-encrypt publicKey message = do
+encrypt :: Binary a => PublicKey -> a -> IO Message
+encrypt publicKey (LBS.toStrict . encode -> message) = do
   key <- generateKey
   encryptSmall publicKey (keyBytes key) >>= \case
     Left rsaError -> throwIO $ EncryptionException rsaError
@@ -259,7 +280,7 @@ encrypt publicKey message = do
 
 -- | The sort of exception we might get during decryption.
 data DecryptionException = DecryptionException RSAError
-  deriving Show
+  deriving stock Show
 
 instance Exception DecryptionException
 
@@ -270,9 +291,23 @@ decrypt privateKey Message{encryptedKey, encryptedBytes} = do
     Left rsaError -> throwIO $ DecryptionException rsaError
     Right decryptedKey -> either throwIO pure (decryptSym (Key decryptedKey) encryptedBytes)
 
+-- | A convenient type in which to wrap encrypted things which are known to have a specific type.
+newtype Encrypted a = Encrypted
+  { encryptedMessage :: Encoded Message
+  } deriving stock (Show, Read, Generic)
+    deriving anyclass Binary
+
+-- | Construct an 'Encrypted' piece of data.
+encrypted :: Binary a => PublicKey -> a -> IO (Encrypted a)
+encrypted pub a = (Encrypted . encoded) <$> encrypt pub (encoded a)
+
+-- | Decrypt an 'Encrypted' thing.
+decrypted :: Binary a => PrivateKey -> Encrypted a -> IO a
+decrypted priv (Encrypted msg) = (decode . LBS.fromStrict) <$> decrypt priv (decoded msg)
+
 -- | The sort of exception we might get during signature.
 data SignatureException = SignatureException RSAError
-  deriving Show
+  deriving stock Show
 
 instance Exception SignatureException
 
@@ -281,7 +316,8 @@ instance Exception SignatureException
 -- anyone with your 'PublicKey' can verify that signature's legitimacy.
 newtype Signature = Signature
   { signatureBytes :: ByteString
-  } deriving (Eq, Ord, Show, Read, Generic, Binary)
+  } deriving stock (Eq, Ord, Show, Read, Generic)
+    deriving anyclass Binary
 
 -- | Sign a message with your private key, producing a 'ByteString' that
 -- others cannot fabricate for new messages.
@@ -300,11 +336,11 @@ verify (PublicKey pubKey) bs (Signature sig) =
 
 -- | A convenient type in which to wrap signed things.
 data Signed a = Signed
-  { signed :: a
+  { signedThing :: a
   , signedEncoded :: ByteString
   , signature :: Signature
   , signedBy :: PublicKey
-  } deriving (Show, Read, Generic)
+  } deriving stock (Show, Read, Generic)
 
 instance Eq (Signed a) where
   s == s' =
@@ -328,19 +364,19 @@ instance Binary a => Binary (Signed a) where
     signature <- get
     signedBy <- get
     pure $ Signed
-      { signed = decode $ LBS.fromStrict signedEncoded
+      { signedThing = decode $ LBS.fromStrict signedEncoded
       , signedEncoded
       , signature
       , signedBy
       }
     
 -- | Create a 'Signed' piece of data.
-mkSigned :: Binary a => PrivateKey -> a -> IO (Signed a)
-mkSigned privateKey signed = do
-  let signedEncoded = LBS.toStrict $ encode signed
+signed :: Binary a => PrivateKey -> a -> IO (Signed a)
+signed privateKey signedThing = do
+  let signedEncoded = LBS.toStrict $ encode signedThing
   signature <- sign privateKey signedEncoded
   let signedBy = privateToPublic privateKey
-  pure $ Signed { signed, signedEncoded, signature, signedBy }
+  pure $ Signed { signedThing, signedEncoded, signature, signedBy }
   
 -- | Verify a 'Signed' piece of data.
 verifySigned :: Signed a -> Bool
